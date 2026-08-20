@@ -195,13 +195,31 @@ class Pipeline:
     # ---- 翻译 ----
     def stage_translate(self):
         if self.ws.exists("translation.json"):
-            log.info("[Translation] translation.json exists, skip")
-            return self._load_json("translation.json")["utterances"]
+            saved = self._load_json("translation.json")
+            if saved.get("target") == self.target_lang:
+                log.info("[Translation] translation.json exists (target=%s), skip", self.target_lang)
+                return saved["utterances"]
+            log.info("[Translation] 目标语言已变（%s→%s），重新翻译", saved.get("target"), self.target_lang)
         data = self._get_utterances()
         source = self.source_lang or data.get("meta", {}).get("language")
         if not source:
             raise RuntimeError("[Translation] 未知源语言，请传 --source-lang")
         utterances = data["utterances"]
+
+        # 原语言 == 目标语言：无需翻译，直接复用原文（如中文视频重新配音成中文）
+        if source == self.target_lang:
+            log.info("[Translation] 原语言==目标语言（%s），无需翻译，直接复用原文", source)
+            for u in utterances:
+                u["translated_text"] = u["text"]
+            self._save_json(
+                "translation.json",
+                {"source": source, "target": self.target_lang, "utterances": utterances},
+            )
+            trans_segs = [{**s, "text": s.get("translated_text", s["text"])} for s in utterances]
+            subtitles.write_srt(trans_segs, self.ws.path("subtitles_translated.srt"))
+            subtitles.write_ass(trans_segs, self.ws.path("subtitles_translated.ass"))
+            log.info("[Translation] wrote translation.json（同语言复用）")
+            return utterances
 
         tr = Translator(self.config)
         try:
@@ -220,9 +238,16 @@ class Pipeline:
 
     # ---- TTS 配音 ----
     def stage_tts(self):
+        tts_dir = self.ws.path("tts")
         if self.ws.exists("tts_map.json"):
-            log.info("[TTS] tts_map.json exists, skip")
-            return self._load_json("tts_map.json")["audio"]
+            saved = self._load_json("tts_map.json")
+            if saved.get("target") == self.target_lang:
+                log.info("[TTS] tts_map.json exists (target=%s), skip", self.target_lang)
+                return saved["audio"]
+            log.info("[TTS] 目标语言已变（%s→%s），清空旧配音重新生成", saved.get("target"), self.target_lang)
+            import shutil
+
+            shutil.rmtree(tts_dir, ignore_errors=True)
         translation = self._load_json("translation.json")
         utterances = translation["utterances"]
         turns = self._load_json("diarization.json")["turns"]
@@ -234,7 +259,6 @@ class Pipeline:
         refs = self._extract_references(speakers, turns, vocals)
 
         synth = Synthesizer(self.config)
-        tts_dir = self.ws.path("tts")
         tts_dir.mkdir(parents=True, exist_ok=True)
 
         from ..utils.env import read_env
@@ -261,7 +285,9 @@ class Pipeline:
                 if out.exists():
                     continue
                 spk = seg.get("speaker", "SPEAKER_00")
-                ref = refs.get(spk)
+                # 逐句参考音频优先：该句分离后的人声（保留逐句情感颗粒度）；
+                # 过短/缺失时退回说话人级参考
+                ref = self._pick_ref(seg, refs)
                 if not ref:
                     raise RuntimeError(f"[TTS] 说话人 {spk} 无参考音频（diarization 未覆盖？）")
                 items.append(
@@ -278,8 +304,8 @@ class Pipeline:
             log.info("[TTS] 全部 %d 段已合成，跳过", len(utterances))
 
         audio = [str(tts_dir / f"seg_{i:04d}.wav") for i in range(len(utterances))]
-        self._save_json("tts_map.json", {"audio": audio})
-        log.info("[TTS] wrote tts_map.json (%d segments)", len(audio))
+        self._save_json("tts_map.json", {"target": self.target_lang, "audio": audio})
+        log.info("[TTS] wrote tts_map.json (%d segments, target=%s)", len(audio), self.target_lang)
         return audio
 
     def _extract_references(self, speakers, turns, vocals_path):
@@ -297,6 +323,23 @@ class Pipeline:
             refs[spk] = str(out)
         return refs
 
+    def _pick_ref(self, seg, refs):
+        """逐句参考音频：优先用该句分离后的人声做 IndexTTS 参考（保留逐句情感颗粒度）。
+
+        参考音频过短（<1s）或缺失时，退回说话人级参考（最长句）。
+        """
+        from ..utils.audio import duration as _dur
+
+        spk = seg.get("speaker", "SPEAKER_00")
+        ref_audio = seg.get("ref_audio")
+        if ref_audio and Path(ref_audio).exists():
+            try:
+                if _dur(ref_audio) >= 1.0:
+                    return ref_audio
+            except Exception:
+                pass
+        return refs.get(spk)
+
     def _retry_long_duration(self, synth, tts_dir, utterances, refs):
         """对时长明显超过原时间槽的配音，用 IndexTTS duration_factor(<1) 加速重合成。"""
         from ..utils.audio import duration as _dur
@@ -313,7 +356,7 @@ class Pipeline:
             if dur > slot * 1.2:
                 df = max(0.5, slot / dur)  # IndexTTS 支持 0.5~2.0
                 spk = seg.get("speaker", "SPEAKER_00")
-                ref = refs.get(spk)
+                ref = self._pick_ref(seg, refs)
                 if not ref:
                     continue
                 retry.append({
@@ -361,6 +404,7 @@ class Pipeline:
             original_vocal_gain=float(cfg.get("original_vocal_gain", 0.08)),
             background_gain=float(cfg.get("background_gain", 1.0)),
             dubbed_gain=float(cfg.get("dubbed_gain", 1.0)),
+            dubbed_rms=float(cfg.get("dubbed_rms", 0.12)),
         )
         return out
 

@@ -122,9 +122,12 @@ def build_utterances(vocals_path, turns, transcriber, separators, embedding, wor
     workdir = Path(workdir)
     workdir.mkdir(parents=True, exist_ok=True)
 
-    def _add(speaker, start, end, text):
+    def _add(speaker, start, end, text, ref_audio=None):
         if text:
-            utterances.append({"speaker": speaker, "start": start, "end": end, "text": text})
+            u = {"speaker": speaker, "start": start, "end": end, "text": text}
+            if ref_audio:
+                u["ref_audio"] = ref_audio  # 该句分离后的人声，用作逐句参考音频
+            utterances.append(u)
 
     for idx, cl in enumerate(clusters):
         cstart = min(t["start"] for t in cl)
@@ -134,7 +137,7 @@ def build_utterances(vocals_path, turns, transcriber, separators, embedding, wor
             t = cl[0]
             chunk = workdir / f"c{idx}_single.wav"
             cut(vocals_path, t["start"], t["end"], chunk)
-            _add(t["speaker"], t["start"], t["end"], _transcribe_file(transcriber, chunk))
+            _add(t["speaker"], t["start"], t["end"], _transcribe_file(transcriber, chunk), str(chunk))
             continue
 
         # 多人重叠：分离后再分别 ASR
@@ -148,14 +151,14 @@ def build_utterances(vocals_path, turns, transcriber, separators, embedding, wor
             log.warning("[Utterances] cluster 有 %d 人重叠，无对应分离模型，整体转写", len(speakers))
             text = _transcribe_file(transcriber, mix)
             for t in cl:
-                _add(t["speaker"], t["start"], t["end"], text)
+                _add(t["speaker"], t["start"], t["end"], text, str(mix))
             continue
 
         streams = separator.separate(mix, workdir / f"c{idx}", prefix="s")
         assignment = assign_streams(streams, speakers, speakers_refs, embedding)
         for spk, stream in assignment.items():
             t = next(t for t in cl if t["speaker"] == spk)
-            _add(spk, t["start"], t["end"], _transcribe_file(transcriber, stream))
+            _add(spk, t["start"], t["end"], _transcribe_file(transcriber, stream), str(stream))
 
     utterances.sort(key=lambda u: (u["start"], u["end"]))
     log.info("[Utterances] %d 句（其中重叠簇 %d 个）", len(utterances), overlap_count)

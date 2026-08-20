@@ -62,8 +62,9 @@ alignment:
 
 mixing:
   original_vocal_gain: 0.08                   # 原人声压低到 8%
-  background_gain: 1.0
-  dubbed_gain: 1.0
+  background_gain: 1.0                        # 背景音量（0~2）
+  dubbed_gain: 1.0                            # 配音总音量倍率
+  dubbed_rms: 0.12                            # 每段配音归一化目标响度（0~1，建议 0.1~0.15）
 
 speakers:
   mapping_file: "config/speakers.yaml"
