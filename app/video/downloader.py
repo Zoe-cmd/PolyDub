@@ -57,6 +57,12 @@ def _is_cookie_error(err_text: str) -> bool:
     return any(h in t for h in _COOKIE_ERROR_HINTS)
 
 
+def _is_page_reload_error(err_text: str) -> bool:
+    """YouTube 反爬：'The page needs to be reloaded'。"""
+    t = (err_text or "").lower()
+    return "page needs to be reloaded" in t
+
+
 def _normalize_cookies_file(path):
     """把 cookie 文件统一为 yt-dlp 可用的格式。
 
@@ -173,17 +179,43 @@ def download(url, out_dir, cookies_config=None, format_spec="bestvideo+bestaudio
     if cookie_opts.get("cookiesfrombrowser"):
         log.info("[Download] 使用浏览器 cookie：%s", cookie_opts["cookiesfrombrowser"][0])
 
-    try:
-        with YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-    except Exception as e:
-        if _is_cookie_error(str(e)):
+    # YouTube：依次尝试多个 player client，绕开“页面需要重载”等反爬拦截
+    _YT_CLIENTS = ["default", "android", "web_embedded", "tv", "mweb"]
+    _is_yt = "youtube.com" in str(url) or "youtu.be" in str(url)
+    last_err = None
+    saw_reload = False
+    for _client in _YT_CLIENTS if _is_yt else ["default"]:
+        o = dict(opts)
+        ea = {"youtube": {"challenge_solver": "default"}}  # 有 node/deno 时解 n 挑战，恢复隐藏格式
+        if _client != "default":
+            ea["youtube"]["player_client"] = [_client]
+        o["extractor_args"] = ea
+        try:
+            with YoutubeDL(o) as ydl:
+                info = ydl.extract_info(url, download=True)
+            break  # 成功
+        except Exception as e:
+            last_err = e
+            if _is_page_reload_error(str(e)):
+                saw_reload = True
+            if not _is_yt:
+                raise
+            log.warning("[Download] player_client=%s 失败，尝试下一个：%s", _client, str(e)[:120])
+    else:
+        if saw_reload:
+            raise RuntimeError(
+                "[Download] YouTube 反爬拦截（页面需要重载）。\n"
+                "请依次尝试：① 更换代理节点/线路（当前出口 IP 可能被 YouTube 标记）；"
+                "② 重新登录 YouTube 后重新导出最新 cookie 并粘贴保存；"
+                "③ 稍等几分钟再试（频繁请求会触发风控）。"
+            ) from last_err
+        if _is_cookie_error(str(last_err)):
             raise RuntimeError(
                 "[Download] 下载失败：可能需要登录 Cookie（被风控/需登录/会员/年龄限制）。\n"
                 "解决办法：在 Web UI「设置」页 →『下载 Cookie（YouTube / TikTok）』中，"
                 "用浏览器插件 Cookie-Editor 导出对应网站的 cookie（JSON）整段粘贴保存后重试。"
-            ) from e
-        raise
+            ) from last_err
+        raise last_err
 
     filepath = None
     if info:
