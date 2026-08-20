@@ -20,7 +20,7 @@
 
 1. **一键安装**：双击运行 `setup.bat`，脚本会自动创建 Python 环境、安装全部依赖、配置 IndexTTS 2.5、下载全部 AI 模型。只需按提示输入 HuggingFace Token。
 2. **填写配置**：用记事本打开 `.env`，填入翻译用的 `OPENAI_API_KEY` 和 `OPENAI_BASE_URL`（可先留空，用本地离线翻译）。
-3. **启动使用**：运行 `python webui.py`，浏览器打开 http://127.0.0.1:7860，上传视频或粘贴视频链接，选目标语言，点「一键全流程」。
+3. **启动使用**：双击 `start.bat`（自动找到 Python 并启动），浏览器打开 http://127.0.0.1:7860，上传视频或粘贴视频链接，选目标语言，点「一键全流程」。
 
 > 手动安装方式见下方「安装」章节；下载视频遇到 cookie 问题见「下载 Cookie 配置」章节。
 
@@ -86,7 +86,8 @@ Video ──FFmpeg──▶ Audio
 
 ## 🚀 安装
 
-> **推荐：直接双击 `setup.bat` 一键安装**（自动完成下方全部步骤，小白友好）。
+> **推荐：直接双击 `setup.bat` 一键安装**。脚本是交互式的：先检测你电脑的环境，让你选择用 **Conda 环境 / 项目内 .venv / 系统 Python** 三种方式之一来安装，然后自动完成下方全部步骤（装依赖、配 IndexTTS 2.5、下载模型、生成 .env），小白友好。
+> 安装完成后，以后每次使用双击 **`start.bat`** 即可一键启动。
 > 以下为手动方式：
 
 ### 硬件要求
@@ -149,6 +150,10 @@ python main.py --input 视频.mp4 --stage mux
 ### Web UI
 
 ```bash
+# 方式一：一键启动（推荐，自动找 Python 环境）
+双击 start.bat
+
+# 方式二：手动启动
 python webui.py   # 打开 http://127.0.0.1:7860
 ```
 
@@ -230,7 +235,8 @@ transvideo/
 ├── config/           config.yaml / speakers.yaml / cookies/（粘贴的 cookie 文件）
 ├── scripts/          gen_test_video.py / download_models.py（一键下载模型）
 ├── preview/          预览视频
-├── setup.bat         一键安装脚本（小白推荐）
+├── setup.bat         一键安装脚本（交互式选环境，小白推荐）
+├── start.bat         一键启动脚本（自动读 .pyenv.txt 找 Python）
 ├── main.py           命令行入口
 ├── webui.py          Web UI
 └── outputs/          中间结果与成品（按视频名分目录）

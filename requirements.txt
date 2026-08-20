@@ -1,4 +1,14 @@
-# ===== Phase 1 (ASR / 音频处理) =====
+# ============================================================
+# PolyDub 依赖
+#
+# 重要：torch / torchaudio 需要先单独安装（CUDA 版）！
+#   setup.bat 会自动处理；手动安装请先执行：
+#   pip install torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
+#   然后再执行：pip install -r requirements.txt
+# （这样 pyannote/demucs 等会自动复用已装好的 CUDA 版 torch）
+# ============================================================
+
+# ---- 基础 / 音频处理 ----
 faster-whisper>=1.0.0
 ctranslate2>=4.0
 numpy<2
@@ -6,13 +16,28 @@ soundfile>=0.12
 librosa>=0.10
 pyyaml>=6.0
 tqdm>=4.66
+requests>=2.31
+huggingface-hub>=0.20
+
+# ---- 视频下载 ----
 yt-dlp>=2024.1.1
 
-# ===== Phase 2 (说话人分离, gated 模型需 HF token) =====
-# pyannote.audio==3.1.*
+# ---- 说话人识别（gated 模型，需先接受 HF 许可并配置 HF_TOKEN）----
+# 固定 3.1.x：4.x 版本显存占用明显更高
+pyannote.audio==3.1.1
 
-# ===== Phase 3 (人声/背景分离) =====
-# demucs>=4.0
+# ---- 人声/背景分离 ----
+demucs>=4.0
 
-# ===== Web UI (可选) =====
-# gradio>=4.0
+# ---- 重叠语音分离（多人同时说话）----
+speechbrain>=1.0,<2.0
+
+# ---- 翻译（本地 opus-mt 兜底，依赖 transformers）----
+# transformers 固定 4.49.0（与 torch 2.5.x 兼容，避免 .bin 权重加载报错）
+transformers==4.49.0
+
+# ---- 免费 TTS ----
+edge-tts>=6.0
+
+# ---- Web UI ----
+gradio>=4.0

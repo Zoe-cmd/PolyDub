@@ -1,0 +1,3 @@
+# bat 文件必须用 CRLF 换行（cmd.exe 无法解析 LF）
+*.bat text eol=crlf
+*.cmd text eol=crlf
