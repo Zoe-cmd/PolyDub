@@ -10,3 +10,4 @@ inputs/
 *.wav
 *.mp3
 *.log
+diag*.txt
