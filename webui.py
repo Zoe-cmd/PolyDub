@@ -196,6 +196,8 @@ def build_settings_tab():
                 c = gr.Checkbox(value=value_from_str(env_vals.get(key), "checkbox"), label=label, info=desc)
             elif typ == "number":
                 c = gr.Number(value=value_from_str(env_vals.get(key), "number"), label=label, info=desc)
+            elif typ == "textarea":
+                c = gr.Textbox(value=env_vals.get(key, ""), label=label, lines=8, info=desc)
             else:
                 c = gr.Textbox(
                     value=env_vals.get(key, ""),
@@ -223,7 +225,18 @@ def build_settings_tab():
     def do_save(*values):
         updates = {}
         for (key, typ, _c), v in zip(components, values):
-            updates[key] = value_to_str(v, typ)
+            if key in ("YOUTUBE_COOKIES_JSON", "TIKTOK_COOKIES_JSON"):
+                # 粘贴的 cookie JSON 写到独立文件，.env 只存文件路径
+                platform = "youtube" if "YOUTUBE" in key else "tiktok"
+                target_key = f"{'YOUTUBE' if 'YOUTUBE' in key else 'TIKTOK'}_COOKIES_FILE"
+                cookie_file = Path("config") / "cookies" / f"{platform}_cookies.txt"
+                if v and str(v).strip():
+                    cookie_file.parent.mkdir(parents=True, exist_ok=True)
+                    cookie_file.write_text(str(v).strip(), encoding="utf-8")
+                    updates[target_key] = str(cookie_file)
+                # 留空则不修改现有 cookie 文件配置
+            else:
+                updates[key] = value_to_str(v, typ)
         try:
             write_env(ENV_PATH, updates)
             load_dotenv(ENV_PATH, override=True)

@@ -16,6 +16,16 @@
 
 ---
 
+## 🚀 快速开始（小白版，3 步）
+
+1. **一键安装**：双击运行 `setup.bat`，脚本会自动创建 Python 环境、安装全部依赖、配置 IndexTTS 2.5、下载全部 AI 模型。只需按提示输入 HuggingFace Token。
+2. **填写配置**：用记事本打开 `.env`，填入翻译用的 `OPENAI_API_KEY` 和 `OPENAI_BASE_URL`（可先留空，用本地离线翻译）。
+3. **启动使用**：运行 `python webui.py`，浏览器打开 http://127.0.0.1:7860，上传视频或粘贴视频链接，选目标语言，点「一键全流程」。
+
+> 手动安装方式见下方「安装」章节；下载视频遇到 cookie 问题见「下载 Cookie 配置」章节。
+
+---
+
 ## ✨ 核心特性
 
 - **多说话人识别**（pyannote.audio 3.1）：自动判断「谁在何时说话」，人数可手动指定或自动检测
@@ -76,12 +86,16 @@ Video ──FFmpeg──▶ Audio
 
 ## 🚀 安装
 
+> **推荐：直接双击 `setup.bat` 一键安装**（自动完成下方全部步骤，小白友好）。
+> 以下为手动方式：
+
 ### 硬件要求
 - NVIDIA GPU（推荐 ≥ 8GB 显存，16GB 更佳；纯 edge-tts 方案可不需 GPU）
 - Python 3.10–3.11
 - FFmpeg（已在 PATH）
+- git、conda（setup.bat 会检查）
 
-### 步骤
+### 步骤（手动）
 
 ```bash
 # 1. 创建环境
@@ -143,6 +157,37 @@ python webui.py   # 打开 http://127.0.0.1:7860
 
 ---
 
+## 🍪 下载 Cookie 配置（YouTube / TikTok）
+
+部分视频下载会失败，提示「需要登录 / 被风控 / 会员专享 / 年龄限制」。解决方法是给项目配置对应网站的登录 Cookie（很简单，两步）。
+
+### 第 1 步：用浏览器插件导出 Cookie
+
+1. 在 Chrome / Edge 安装扩展 **Cookie-Editor**（扩展商店搜索 "Cookie-Editor" 即可）。
+2. 打开 **YouTube**（或 **TikTok**），**确保你已经登录**。
+3. 点击浏览器右上角的 Cookie-Editor 图标 → 点右下角 **Export**（导出）→ 复制弹出的 JSON 内容（一段方括号开头的文本）。
+
+### 第 2 步：粘贴到项目设置页
+
+1. 启动 Web UI：`python webui.py` → 打开 http://127.0.0.1:7860
+2. 进「⚙️ 设置」页 → 找到 **「下载 Cookie（YouTube / TikTok）」** 分区。
+3. 把复制的 JSON 整段粘贴到对应输入框（YouTube 的贴 YouTube 框，TikTok 的贴 TikTok 框）。
+4. 点 **「💾 保存所有设置」**。系统会自动把 Cookie 存到 `config/cookies/` 目录。
+
+### 第 3 步：重新下载
+
+回到「🎬 处理」页，重新粘贴视频链接下载即可。
+
+### 常见问题（FAQ）
+
+- **保存后下载还是失败？** 确认 Cookie 是从「已登录」的浏览器导出的；YouTube 建议用可正常观看该视频的账号（如美区/港区账号）。
+- **TikTok 不想粘贴 JSON？** 可在设置页填 `TIKTOK_COOKIES_BROWSER=edge`（换成你用的浏览器名），自动读取浏览器已登录的 Cookie。
+- **Cookie 会过期**，一般几周到几个月，失效后重新导出粘贴一次即可。
+- **下载失败的提示里包含「需要登录 Cookie」**，说明本项目识别到需要登录，按上面的步骤配置即可。
+- **手动方式**：也可直接把 Cookie-Editor 导出的内容保存为文件，并在 `.env` 里填 `YOUTUBE_COOKIES_FILE=你的文件路径`。
+
+---
+
 ## ⚙️ 配置说明
 
 ### `.env`（运行时配置，可在 Web UI 设置页直接改）
@@ -154,7 +199,8 @@ python webui.py   # 打开 http://127.0.0.1:7860
 | TTS 音色 | `TTS_VOICE_<语言>_MALE/FEMALE` | edge-tts 音色池（已内置中/英/日/韩/西/阿全部音色） |
 | IndexTTS | `INDEX_TTS_REPO_DIR` 等 | 本地 IndexTTS 目录与开关 |
 | 网络 | `HTTP_PROXY` / `HTTPS_PROXY` | 访问 HuggingFace/YouTube 等的代理 |
-| 下载 | `YOUTUBE_COOKIES_FILE` / `TIKTOK_COOKIES_BROWSER` | 视频下载 cookie |
+| 下载 Cookie | `YOUTUBE_COOKIES_JSON` / `TIKTOK_COOKIES_JSON` | 粘贴 Cookie-Editor 导出的 JSON（保存后自动写入 `config/cookies/`） |
+| 下载 Cookie | `YOUTUBE_COOKIES_FILE` / `TIKTOK_COOKIES_FILE` / `TIKTOK_COOKIES_BROWSER` | Cookie 文件路径 / TikTok 浏览器读取（高级） |
 | HuggingFace | `HF_TOKEN` | 下载 pyannote 等 gated 模型必需 |
 
 ### `config/config.yaml`（管道参数）
@@ -181,9 +227,10 @@ transvideo/
 │   ├── mixing/       audio_mixer（混音）
 │   ├── pipeline/     pipeline（编排）/ utterances（逐人转写+重叠分离）
 │   └── utils/        env / gpu / subtitles / audio / workspace
-├── config/           config.yaml / speakers.yaml
-├── scripts/          gen_test_video.py（生成测试视频）
+├── config/           config.yaml / speakers.yaml / cookies/（粘贴的 cookie 文件）
+├── scripts/          gen_test_video.py / download_models.py（一键下载模型）
 ├── preview/          预览视频
+├── setup.bat         一键安装脚本（小白推荐）
 ├── main.py           命令行入口
 ├── webui.py          Web UI
 └── outputs/          中间结果与成品（按视频名分目录）

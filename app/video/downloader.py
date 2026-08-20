@@ -18,23 +18,43 @@ def is_url(text) -> bool:
 
 
 def _build_cookie_opts(url, cookies_config):
-    """根据 URL 域名构造 yt-dlp 的 cookie 相关 opts。"""
+    """根据 URL 域名构造 yt-dlp 的 cookie 相关 opts。
+
+    cookie 来源优先级：
+    - config.yaml `download.cookies.<platform>`（高级）
+    - 环境变量 `YOUTUBE_COOKIES_FILE` / `TIKTOK_COOKIES_FILE`（设置页粘贴 JSON 后自动写入的路径）
+    - TikTok 备选：`TIKTOK_COOKIES_BROWSER`（从浏览器读取登录 cookie）
+    """
     cookies_config = cookies_config or {}
     domain = (urlparse(str(url)).netloc or "").lower()
     opts = {}
     if "youtube.com" in domain or "youtu.be" in domain:
         cf = (cookies_config.get("youtube") or None) or os.environ.get("YOUTUBE_COOKIES_FILE") or None
         if cf:
-            opts["cookiefile"] = cf
+            opts["cookiefile"] = str(cf)
     elif "tiktok.com" in domain:
-        cf = cookies_config.get("tiktok") or None
+        cf = (cookies_config.get("tiktok") or None) or os.environ.get("TIKTOK_COOKIES_FILE") or None
         if cf:
-            opts["cookiefile"] = cf
+            opts["cookiefile"] = str(cf)
         else:
             browser = os.environ.get("TIKTOK_COOKIES_BROWSER") or None
             if browser:
                 opts["cookiesfrombrowser"] = (browser.strip(),)
     return opts
+
+
+# yt-dlp 报错中与「需要登录/被风控」相关的关键词
+_COOKIE_ERROR_HINTS = (
+    "sign in to confirm", "you're not a bot", "not a bot",
+    "login required", "log in", "only available to members",
+    "confirm your age", "verify you are human", "bot check",
+    "http error 403",
+)
+
+
+def _is_cookie_error(err_text: str) -> bool:
+    t = (err_text or "").lower()
+    return any(h in t for h in _COOKIE_ERROR_HINTS)
 
 
 def _progress(d):
@@ -83,8 +103,17 @@ def download(url, out_dir, cookies_config=None, format_spec="bestvideo+bestaudio
     if cookie_opts.get("cookiesfrombrowser"):
         log.info("[Download] 使用浏览器 cookie：%s", cookie_opts["cookiesfrombrowser"][0])
 
-    with YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
+    try:
+        with YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+    except Exception as e:
+        if _is_cookie_error(str(e)):
+            raise RuntimeError(
+                "[Download] 下载失败：可能需要登录 Cookie（被风控/需登录/会员/年龄限制）。\n"
+                "解决办法：在 Web UI「设置」页 →『下载 Cookie（YouTube / TikTok）』中，"
+                "用浏览器插件 Cookie-Editor 导出对应网站的 cookie（JSON）整段粘贴保存后重试。"
+            ) from e
+        raise
 
     filepath = None
     if info:

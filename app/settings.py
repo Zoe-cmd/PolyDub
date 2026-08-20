@@ -160,8 +160,15 @@ SETTINGS_SECTIONS = [
          "通用代理地址（部分工具读取该变量）。"),
         ("NETWORK_TIMEOUT", "超时（秒）", "number", None,
          "网络请求超时时间。"),
-        ("TIKTOK_COOKIES_BROWSER", "TikTok Cookie 浏览器", "text", None,
-         "下载 TikTok 时从哪个浏览器读取登录 cookie（如 edge），避免被风控。"),
+    ]),
+    ("下载 Cookie（YouTube / TikTok）", [
+        ("YOUTUBE_COOKIES_JSON", "YouTube Cookies（JSON）", "textarea", None,
+         "用浏览器插件 Cookie-Editor 导出 YouTube 登录后的 cookies（JSON 格式），整段粘贴到这里。"
+         "下载受限/需登录/会员视频时配置。留空=不启用。"),
+        ("TIKTOK_COOKIES_JSON", "TikTok Cookies（JSON）", "textarea", None,
+         "同上，导出 TikTok 的 cookies（JSON）粘贴到这里，解决 TikTok 风控导致下载失败。留空=不启用。"),
+        ("TIKTOK_COOKIES_BROWSER", "TikTok Cookie 浏览器（备选）", "text", None,
+         "备选：不粘贴 JSON 时，填浏览器名（如 edge），自动读取该浏览器已登录的 cookie。"),
     ]),
     ("人声分离 & 其他", [
         ("SEPARATE_VOCALS", "人声分离", "checkbox", None,
@@ -172,8 +179,6 @@ SETTINGS_SECTIONS = [
          "保留笑声、咳嗽、音效等非语音原声。"),
         ("ACCOMPANIMENT_VOLUME", "伴奏音量", "number", None,
          "背景音乐/伴奏的音量比例（0~2，1 为原音量）。"),
-        ("YOUTUBE_COOKIES_FILE", "YouTube Cookie 文件", "text", None,
-         "YouTube 的 cookies.txt 文件路径（Netscape 格式，浏览器插件导出），下载受限/会员视频时使用。"),
     ]),
     ("HuggingFace", [
         ("HF_TOKEN", "HuggingFace Token", "password", None,
