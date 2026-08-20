@@ -1,0 +1,18 @@
+# ===== Phase 1 (ASR / 音频处理) =====
+faster-whisper>=1.0.0
+ctranslate2>=4.0
+numpy<2
+soundfile>=0.12
+librosa>=0.10
+pyyaml>=6.0
+tqdm>=4.66
+yt-dlp>=2024.1.1
+
+# ===== Phase 2 (说话人分离, gated 模型需 HF token) =====
+# pyannote.audio==3.1.*
+
+# ===== Phase 3 (人声/背景分离) =====
+# demucs>=4.0
+
+# ===== Web UI (可选) =====
+# gradio>=4.0

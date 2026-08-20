@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+outputs/
+test_assets/
+downloads/
+inputs/
+*.mp4
+!preview/preview.mp4
+*.wav
+*.mp3
+*.log

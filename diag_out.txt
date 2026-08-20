@@ -1,0 +1,34 @@
+19:43:17 | INFO    | [Pipeline] input=test_video.mp4 stages=['diarize']
+19:43:17 | INFO    | [Pipeline] === stage: diarize ===
+19:43:17 | INFO    | [Video] audio.wav exists, skip
+19:43:17 | INFO    | [Video] audio_hq.wav exists, skip
+C:\Users\12439\anaconda3\envs\vt\Lib\site-packages\pyannote\audio\core\io.py:43: UserWarning: torchaudio._backend.set_audio_backend has been deprecated. With dispatcher enabled, this function is no-op. You can remove the function call.
+  torchaudio.set_audio_backend("soundfile")
+19:43:29 | INFO    | [Diarization] Loading pyannote/speaker-diarization-3.1 ...
+C:\Users\12439\anaconda3\envs\vt\Lib\site-packages\pyannote\audio\pipelines\speaker_verification.py:43: UserWarning: torchaudio._backend.get_audio_backend has been deprecated. With dispatcher enabled, this function is no-op. You can remove the function call.
+  backend = torchaudio.get_audio_backend()
+19:43:31 | INFO    | Applied quirks (see `speechbrain.utils.quirks`): [disable_jit_profiling, allow_tf32]
+19:43:31 | INFO    | Excluded quirks specified by the `SB_DISABLE_QUIRKS` environment (comma-separated list): []
+C:\Users\12439\anaconda3\envs\vt\Lib\site-packages\pyannote\audio\pipelines\speaker_verification.py:45: UserWarning: Module 'speechbrain.pretrained' was deprecated, redirecting to 'speechbrain.inference'. Please update your script. This is a change from SpeechBrain 1.0. See: https://github.com/speechbrain/speechbrain/releases/tag/v1.0.0
+  from speechbrain.pretrained import (
+C:\Users\12439\anaconda3\envs\vt\Lib\site-packages\pyannote\audio\pipelines\speaker_verification.py:53: UserWarning: torchaudio._backend.set_audio_backend has been deprecated. With dispatcher enabled, this function is no-op. You can remove the function call.
+  torchaudio.set_audio_backend(backend)
+C:\Users\12439\anaconda3\envs\vt\Lib\site-packages\pyannote\audio\tasks\segmentation\mixins.py:37: UserWarning: `torchaudio.backend.common.AudioMetaData` has been moved to `torchaudio.AudioMetaData`. Please update the import path.
+  from torchaudio.backend.common import AudioMetaData
+C:\Users\12439\anaconda3\envs\vt\Lib\site-packages\lightning_fabric\utilities\cloud_io.py:73: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+19:43:33 | INFO    | [Diarization] pyannote loaded on cuda
+19:43:33 | INFO    | [Diarization] Detecting speakers ...
+C:\Users\12439\anaconda3\envs\vt\Lib\site-packages\pyannote\audio\utils\reproducibility.py:74: ReproducibilityWarning: TensorFloat-32 (TF32) has been disabled as it might lead to reproducibility issues and lower accuracy.
+It can be re-enabled by calling
+   >>> import torch
+   >>> torch.backends.cuda.matmul.allow_tf32 = True
+   >>> torch.backends.cudnn.allow_tf32 = True
+See https://github.com/pyannote/pyannote-audio/issues/1370 for more details.
+
+  warnings.warn(
+C:\Users\12439\anaconda3\envs\vt\Lib\site-packages\pyannote\audio\models\blocks\pooling.py:104: UserWarning: std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor (input numel divided by output numel). (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\builder\windows\pytorch\aten\src\ATen\native\ReduceOps.cpp:1823.)
+  std = sequences.std(dim=-1, correction=1)
+19:43:34 | INFO    | [Diarization] 4 turns, speakers=['SPEAKER_00', 'SPEAKER_01']
+19:43:34 | INFO    | [Speakers] saved mapping to config\speakers.yaml
+19:43:34 | INFO    | [Diarization] wrote transcript_speakers.json
+19:43:34 | INFO    | [Pipeline] Done. Workspace: outputs\test_video

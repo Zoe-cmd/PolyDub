@@ -1,0 +1,66 @@
+video:
+  ffmpeg: "ffmpeg"
+  ffprobe: "ffprobe"
+
+download:
+  output_dir: "downloads"                    # 下载视频存放目录
+  format: "bestvideo+bestaudio/best"          # 下载质量
+  cookies:
+    youtube: ""                              # YouTube cookies.txt 路径（Netscape 格式）
+    tiktok: ""                               # TikTok cookies.txt 路径（Netscape 格式）
+
+workspace:
+  root: "outputs"
+
+asr:
+  engine: "faster-whisper"
+  model: "Systran/faster-whisper-large-v3"   # 已下载到 HF 缓存
+  device: "cuda"                              # cuda | cpu
+  compute_type: "float16"                     # float16 | int8 | int8_float16
+  beam_size: 5
+  language: null                              # null = 自动检测
+  vad_filter: false
+
+diarization:
+  backend: "pyannote"                         # pyannote | soulx-duplug
+  model: "pyannote/speaker-diarization-3.1"   # gated 模型
+  hf_token_env: "HF_TOKEN"                    # 从该环境变量读取 token
+  device: "cuda"
+  num_speakers: null                          # 说话人数（null=自动；可经命令行 --num-speakers 或网页传入具体数）
+  min_speakers: null
+  max_speakers: null
+  threshold: null                             # 聚类阈值（null=默认；调低可分出更多说话人）
+
+separation:
+  vocal_model: "htdemucs"                     # htdemucs | htdemucs_ft
+  device: "cuda"
+  overlap_trigger: true                       # 重叠检测（SpeechSep 为高级项，待接入）
+  speech_model: "speechbrain/sepformer-libri2mix"
+
+translation:
+  backend: "local"                            # api | local | llm_local（api 需配 key）
+  api:
+    base_url: "https://api.deepseek.com/v1"   # OpenAI 兼容
+    model: "deepseek-chat"
+    api_key_env: "VT_TRANSLATE_API_KEY"       # 从该环境变量读取 key
+  local:
+    model: null                               # null=按语言对自动选 opus-mt（en<->zh 已下载）
+    device: "cuda"
+
+tts:
+  engine: "indextts"
+  indextts_dir: "C:/Users/12439/agent project/public/index-tts"
+  checkpoint_dir: "checkpoints_25"
+  venv_python: "C:/Users/12439/agent project/public/index-tts/.venv/Scripts/python.exe"
+  device: "cuda"
+
+alignment:
+  max_stretch: 0.15                           # time-stretch 最多压缩 15%
+
+mixing:
+  original_vocal_gain: 0.08                   # 原人声压低到 8%
+  background_gain: 1.0
+  dubbed_gain: 1.0
+
+speakers:
+  mapping_file: "config/speakers.yaml"
