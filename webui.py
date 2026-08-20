@@ -139,9 +139,14 @@ def apply_env_to_config(config):
     return config
 
 
-def run_stages(video_path, stages, source_lang, target_lang, do_separate, num_speakers, progress):
+def run_stages(video_path, stages, source_lang, target_lang, do_separate, num_speakers):
+    """生成器：每完成一个阶段就 yield 一次 (状态, 日志, 原字幕, 翻译字幕, 视频)，
+    实现状态栏/日志栏的实时刷新，不再用全局进度条。"""
+    import time as _time
+
     if not video_path:
-        return "❌ 请先上传视频", "", "", "", None
+        yield "❌ 请先上传视频", "", "", "", None
+        return
     video_path = save_upload(video_path)
 
     root = logging.getLogger()
@@ -149,6 +154,7 @@ def run_stages(video_path, stages, source_lang, target_lang, do_separate, num_sp
     capture = LogCapture()
     capture.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", "%H:%M:%S"))
     root.addHandler(capture)
+    t0 = _time.time()
     try:
         config = apply_env_to_config(load_config())
         if str(num_speakers).strip().lower() != "auto":
@@ -159,21 +165,25 @@ def run_stages(video_path, stages, source_lang, target_lang, do_separate, num_sp
         stages = [s for s in stages if not (s == "separate" and not do_separate)]
         total = max(len(stages), 1)
         for i, s in enumerate(stages):
-            progress(float(i) / total, desc=f"{STAGE_LABEL.get(s, s)} ...")
+            label = STAGE_LABEL.get(s, s)
+            yield (f"▶ 正在执行：{label}（{i + 1}/{total}）｜已用时 {_time.time() - t0:.0f}s",
+                   "\n".join(capture.lines), "", "", None)
             getattr(p, f"stage_{s}")()
-        progress(1.0, desc="完成")
+            yield (f"✅ 完成：{label}（{i + 1}/{total}）｜已用时 {_time.time() - t0:.0f}s",
+                   "\n".join(capture.lines), "", "", None)
 
         info = build_info(p)
         srt = read_text(p.ws.path("subtitles_speakers.srt")) or read_text(p.ws.path("subtitles.srt"))
         trans = read_text(p.ws.path("subtitles_translated.srt"))
         final = p.ws.path(f"{p.ws.name}_dubbed.mp4")
         final = str(final) if Path(final).exists() else None
-        return info, "\n".join(capture.lines), srt, trans, final
+        yield (f"🎉 全部完成！总用时 {_time.time() - t0:.0f}s\n\n{info}",
+               "\n".join(capture.lines), srt, trans, final)
     except Exception as e:
         import traceback
 
         tb = traceback.format_exc()
-        return f"❌ 处理失败：{e}\n\n```\n{tb}\n```", "\n".join(capture.lines), "", "", None
+        yield f"❌ 处理失败：{e}\n\n```\n{tb}\n```", "\n".join(capture.lines), "", "", None
     finally:
         root.removeHandler(capture)
 
@@ -296,8 +306,8 @@ def build_ui():
                 inputs = [video, src_lang, tgt_lang, do_sep, num_spk]
 
                 def make_handler(stages):
-                    def handler(v, s, t, sep, ns, progress=gr.Progress()):
-                        return run_stages(v, stages, s, t, sep, ns, progress)
+                    def handler(v, s, t, sep, ns):
+                        yield from run_stages(v, stages, s, t, sep, ns)
 
                     return handler
 
