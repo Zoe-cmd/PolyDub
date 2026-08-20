@@ -11,3 +11,4 @@ inputs/
 *.mp3
 *.log
 diag*.txt
+config/cookies/
