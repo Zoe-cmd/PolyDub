@@ -110,9 +110,12 @@ class Synthesizer:
         self.engine = engine
 
         if engine == "indextts":
+            # .env 的 IndexTTS 路径优先（设置页可直接改），config 作兜底
+            indextts_dir = env.get("INDEX_TTS_REPO_DIR") or cfg.get("indextts_dir")
+            checkpoint_dir = env.get("INDEX_TTS_MODEL_DIR") or cfg.get("checkpoint_dir", "checkpoints_25")
             self._impl = IndexTTS(
-                indextts_dir=cfg.get("indextts_dir"),
-                checkpoint_dir=cfg.get("checkpoint_dir", "checkpoints_25"),
+                indextts_dir=indextts_dir,
+                checkpoint_dir=checkpoint_dir,
                 venv_python=cfg.get("venv_python"),
                 device=cfg.get("device", "cuda"),
             )

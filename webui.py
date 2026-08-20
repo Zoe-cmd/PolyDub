@@ -237,21 +237,6 @@ def build_settings_tab():
         outputs=[save_status],
     )
 
-    gr.Markdown("### 高级：直接编辑 .env 全文")
-    raw_env = gr.Code(value=read_text(ENV_PATH), language="shell", label=".env 内容")
-    btn_save_raw = gr.Button("💾 保存 .env 全文")
-    raw_status = gr.Textbox(interactive=False, lines=1)
-
-    def do_save_raw(content):
-        try:
-            Path(ENV_PATH).write_text(content or "", encoding="utf-8")
-            load_dotenv(ENV_PATH, override=True)
-            return "✅ 已保存 .env 并立即生效"
-        except Exception as e:
-            return f"❌ 保存失败：{e}"
-
-    btn_save_raw.click(do_save_raw, inputs=[raw_env], outputs=[raw_status])
-
 
 def build_ui():
     with gr.Blocks(title="AI 视频翻译与多说话人配音") as demo:
