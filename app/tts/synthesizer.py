@@ -76,15 +76,34 @@ class IndexTTS:
         env = os.environ.copy()
         env["PYTHONUTF8"] = "1"          # 强制子进程 UTF-8，避免 GBK 控制台编码崩溃
         env["PYTHONIOENCODING"] = "utf-8"
+        n = len(items)
+        tail = []
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True,
-                                  encoding="utf-8", errors="replace", env=env)
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, encoding="utf-8", errors="replace", env=env,
+            )
+            done = 0
+            for line in proc.stdout:
+                line = line.strip()
+                if not line:
+                    continue
+                tail.append(line)
+                tail = tail[-10:]
+                if line.startswith("OK "):
+                    done += 1
+                    log.info("[TTS] 配音进度：%d/%d 段", done, n)
+                elif line == "SYNTH_DONE":
+                    log.info("[TTS] 全部 %d 段合成完成", n)
+                else:
+                    log.info("[TTS] %s", line)
+            proc.wait()
         finally:
             Path(snippet).unlink(missing_ok=True)
             Path(manifest).unlink(missing_ok=True)
 
-        if proc.returncode != 0 or "SYNTH_DONE" not in (proc.stdout or ""):
-            detail = (proc.stderr or proc.stdout or "").strip()[-800:]
+        if proc.returncode != 0 or done != n:
+            detail = "\n".join(tail)[-800:] or f"returncode={proc.returncode}"
             raise RuntimeError(f"[TTS] IndexTTS failed: {detail}")
         return [it["out"] for it in items]
 

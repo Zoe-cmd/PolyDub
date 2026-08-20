@@ -140,8 +140,12 @@ def apply_env_to_config(config):
 
 
 def run_stages(video_path, stages, source_lang, target_lang, do_separate, num_speakers):
-    """生成器：每完成一个阶段就 yield 一次 (状态, 日志, 原字幕, 翻译字幕, 视频)，
-    实现状态栏/日志栏的实时刷新，不再用全局进度条。"""
+    """生成器：流水线在后台线程运行，每条日志经队列实时推送到页面。
+
+    状态栏 = 当前阶段 + 进度 + 已用时；日志栏 = 各环节完整日志（实时滚动）。
+    """
+    import queue as _queue
+    import threading
     import time as _time
 
     if not video_path:
@@ -149,43 +153,80 @@ def run_stages(video_path, stages, source_lang, target_lang, do_separate, num_sp
         return
     video_path = save_upload(video_path)
 
+    q = _queue.Queue()
+    status = {"text": "⏳ 准备中..."}
+    log_lines = []
+
+    class QueueHandler(logging.Handler):
+        def emit(self, record):
+            try:
+                q.put(("LOG", self.format(record)))
+            except Exception:
+                pass
+
     root = logging.getLogger()
     root.setLevel(logging.INFO)
-    capture = LogCapture()
-    capture.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", "%H:%M:%S"))
-    root.addHandler(capture)
-    t0 = _time.time()
+    qh = QueueHandler()
+    qh.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", "%H:%M:%S"))
+    root.addHandler(qh)
+
+    result = {}
+
+    def worker():
+        try:
+            config = apply_env_to_config(load_config())
+            if str(num_speakers).strip().lower() != "auto":
+                config.setdefault("diarization", {})["num_speakers"] = int(num_speakers)
+            src = None if source_lang == "auto" else source_lang
+            p = Pipeline(config, video_path, source_lang=src, target_lang=target_lang)
+
+            run_list = [s for s in stages if not (s == "separate" and not do_separate)]
+            total = max(len(run_list), 1)
+            t0 = _time.time()
+            for i, s in enumerate(run_list):
+                label = STAGE_LABEL.get(s, s)
+                status["text"] = f"▶ 正在执行：{label}（{i + 1}/{total}）｜已用时 {_time.time() - t0:.0f}s"
+                logging.getLogger("webui").info("【%s】===== 开始（%d/%d）=====", label, i + 1, total)
+                getattr(p, f"stage_{s}")()
+                status["text"] = f"✅ 完成：{label}（{i + 1}/{total}）｜已用时 {_time.time() - t0:.0f}s"
+
+            info = build_info(p)
+            srt = read_text(p.ws.path("subtitles_speakers.srt")) or read_text(p.ws.path("subtitles.srt"))
+            trans = read_text(p.ws.path("subtitles_translated.srt"))
+            final = p.ws.path(f"{p.ws.name}_dubbed.mp4")
+            final = str(final) if Path(final).exists() else None
+            status["text"] = f"🎉 全部完成！总用时 {_time.time() - t0:.0f}s\n\n{info}"
+            result["payload"] = (srt, trans, final)
+        except Exception as e:
+            import traceback
+
+            tb = traceback.format_exc()
+            status["text"] = f"❌ 处理失败：{e}"
+            logging.getLogger("webui").error("处理失败：%s\n%s", e, tb)
+        finally:
+            q.put(("DONE", None))
+
+    threading.Thread(target=worker, daemon=True).start()
+
     try:
-        config = apply_env_to_config(load_config())
-        if str(num_speakers).strip().lower() != "auto":
-            config.setdefault("diarization", {})["num_speakers"] = int(num_speakers)
-        src = None if source_lang == "auto" else source_lang
-        p = Pipeline(config, video_path, source_lang=src, target_lang=target_lang)
-
-        stages = [s for s in stages if not (s == "separate" and not do_separate)]
-        total = max(len(stages), 1)
-        for i, s in enumerate(stages):
-            label = STAGE_LABEL.get(s, s)
-            yield (f"▶ 正在执行：{label}（{i + 1}/{total}）｜已用时 {_time.time() - t0:.0f}s",
-                   "\n".join(capture.lines), "", "", None)
-            getattr(p, f"stage_{s}")()
-            yield (f"✅ 完成：{label}（{i + 1}/{total}）｜已用时 {_time.time() - t0:.0f}s",
-                   "\n".join(capture.lines), "", "", None)
-
-        info = build_info(p)
-        srt = read_text(p.ws.path("subtitles_speakers.srt")) or read_text(p.ws.path("subtitles.srt"))
-        trans = read_text(p.ws.path("subtitles_translated.srt"))
-        final = p.ws.path(f"{p.ws.name}_dubbed.mp4")
-        final = str(final) if Path(final).exists() else None
-        yield (f"🎉 全部完成！总用时 {_time.time() - t0:.0f}s\n\n{info}",
-               "\n".join(capture.lines), srt, trans, final)
-    except Exception as e:
-        import traceback
-
-        tb = traceback.format_exc()
-        yield f"❌ 处理失败：{e}\n\n```\n{tb}\n```", "\n".join(capture.lines), "", "", None
+        while True:
+            try:
+                item = q.get(timeout=0.5)
+            except _queue.Empty:
+                yield status["text"], "\n".join(log_lines), "", "", None
+                continue
+            if item[0] == "DONE":
+                break
+            if item[0] == "LOG":
+                log_lines.append(item[1])
+                if len(log_lines) > 1000:  # 防止日志无限增长
+                    log_lines = log_lines[-1000:]
+                yield status["text"], "\n".join(log_lines), "", "", None
     finally:
-        root.removeHandler(capture)
+        root.removeHandler(qh)
+
+    srt, trans, final = result.get("payload", ("", "", None))
+    yield status["text"], "\n".join(log_lines), srt, trans, final
 
 
 def build_settings_tab():

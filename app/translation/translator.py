@@ -179,9 +179,12 @@ class Translator:
     def translate(self, segments, source_lang, target_lang, batch_size=5, context_lines=2):
         """给每个 segment 增加 translated_text 字段。API 失败自动退回本地。"""
         texts = [s["text"] for s in segments]
+        n_batches = (len(texts) + batch_size - 1) // batch_size if texts else 0
         out = []
         context = []
-        for i in range(0, len(texts), batch_size):
+        for bi, i in enumerate(range(0, len(texts), batch_size)):
+            log.info("[Translation] 翻译中：批次 %d/%d（句 %d-%d）...",
+                     bi + 1, n_batches, i + 1, min(i + batch_size, len(texts)))
             batch = texts[i:i + batch_size]
             prev = context[-context_lines:] if context else None
             try:
@@ -191,9 +194,10 @@ class Translator:
                 translated = self._get_local().translate_lines(batch, source_lang, target_lang)
             out.extend(translated)
             context.extend(translated)
+            log.info("[Translation] 本批完成（累计 %d/%d 句）", len(out), len(texts))
         for seg, t in zip(segments, out):
             seg["translated_text"] = t
-        log.info("[Translation] translated %d segments (%s backend)", len(segments), self.backend)
+        log.info("[Translation] 翻译完成：%d 段（%s backend）", len(segments), self.backend)
         return segments
 
     def close(self):
