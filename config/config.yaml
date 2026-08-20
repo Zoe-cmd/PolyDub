@@ -38,11 +38,14 @@ separation:
   speech_model: "speechbrain/sepformer-libri2mix"
 
 translation:
-  backend: "local"                            # api | local | llm_local（api 需配 key）
+  backend: "api"                              # api | local | llm_local（api 需配 key）
+  batch_size: 50                              # 每批翻译的句数（越大调用越少）
+  max_workers: 4                              # 并行翻译路数（同时请求几个批次）
   api:
     base_url: "https://api.deepseek.com/v1"   # OpenAI 兼容
     model: "deepseek-chat"
     api_key_env: "VT_TRANSLATE_API_KEY"       # 从该环境变量读取 key
+    timeout: 300                              # 单次 API 请求超时（秒）
   local:
     model: null                               # null=按语言对自动选 opus-mt（en<->zh 已下载）
     device: "cuda"

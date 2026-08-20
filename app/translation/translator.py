@@ -148,10 +148,16 @@ class LocalTranslator:
 
 class Translator:
     def __init__(self, config):
+        import threading
+
         cfg = config.get("translation", {})
         self.backend = cfg.get("backend", "api")
         self._impl = None
         self._local = None
+        self._local_lock = threading.Lock()
+        # 并行翻译参数（可经 .env 或 config 配置）
+        self.batch_size = int(os.environ.get("TRANSLATE_BATCH_SIZE") or cfg.get("batch_size", 50) or 50)
+        self.max_workers = int(os.environ.get("TRANSLATE_MAX_WORKERS") or cfg.get("max_workers", 4) or 4)
         if self.backend == "api":
             api = cfg.get("api", {})
             key_env = api.get("api_key_env", "VT_TRANSLATE_API_KEY")
@@ -162,7 +168,8 @@ class Translator:
             model = (api.get("model") or os.environ.get("TRANSLATE_MODEL")
                      or "deepseek-chat")
             fallbacks = [m.strip() for m in (os.environ.get("TRANSLATE_MODEL_FALLBACKS") or "").split(",") if m.strip()]
-            self._impl = APITranslator(base_url, api_key, model, fallbacks=fallbacks)
+            timeout = int(api.get("timeout") or 300)
+            self._impl = APITranslator(base_url, api_key, model, timeout=timeout, fallbacks=fallbacks)
         elif self.backend == "local":
             local = cfg.get("local", {})
             self._impl = LocalTranslator(local.get("model"), local.get("device", "cuda"))
@@ -176,28 +183,54 @@ class Translator:
             self._local = LocalTranslator(None, "cuda")
         return self._local
 
-    def translate(self, segments, source_lang, target_lang, batch_size=5, context_lines=2):
-        """给每个 segment 增加 translated_text 字段。API 失败自动退回本地。"""
+    def _translate_batch(self, batch, source_lang, target_lang):
+        """单批翻译：API（含备选模型链）→ 本地 opus-mt。"""
+        try:
+            return self._impl.translate_lines(batch, source_lang, target_lang)
+        except Exception as e:
+            log.warning("[Translation] API 全部模型失败，本批退回本地 opus-mt：%s", str(e)[:120])
+            with self._local_lock:  # 本地模型非线程安全，需串行
+                return self._get_local().translate_lines(batch, source_lang, target_lang)
+
+    def translate(self, segments, source_lang, target_lang, batch_size=None, context_lines=0):
+        """并行翻译多个批次：批次更大 + 多路同时请求，大幅提速。
+
+        单批失败自动降级：API → 备选模型 → 本地 opus-mt → 保留原文。
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        batch_size = int(batch_size or self.batch_size or 50)
         texts = [s["text"] for s in segments]
-        n_batches = (len(texts) + batch_size - 1) // batch_size if texts else 0
-        out = []
-        context = []
-        for bi, i in enumerate(range(0, len(texts), batch_size)):
-            log.info("[Translation] 翻译中：批次 %d/%d（句 %d-%d）...",
-                     bi + 1, n_batches, i + 1, min(i + batch_size, len(texts)))
-            batch = texts[i:i + batch_size]
-            prev = context[-context_lines:] if context else None
+        if not texts:
+            log.info("[Translation] 无待翻译内容")
+            return segments
+        batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+        n = len(batches)
+        results = [None] * n
+
+        def run_batch(bi, batch):
             try:
-                translated = self._impl.translate_lines(batch, source_lang, target_lang, prev_context=prev)
+                return self._translate_batch(batch, source_lang, target_lang)
             except Exception as e:
-                log.warning("[Translation] API 翻译失败，本批退回本地 opus-mt：%s", str(e)[:120])
-                translated = self._get_local().translate_lines(batch, source_lang, target_lang)
-            out.extend(translated)
-            context.extend(translated)
-            log.info("[Translation] 本批完成（累计 %d/%d 句）", len(out), len(texts))
+                log.warning("[Translation] 批次 %d 全部降级失败，保留原文：%s", bi + 1, str(e)[:120])
+                return list(batch)  # 最后兜底：保留原文
+
+        workers = max(1, min(self.max_workers, n))
+        log.info("[Translation] 开始翻译：%d 句，分 %d 批（每批 %d 句），%d 路并行",
+                 len(texts), n, batch_size, workers)
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = {ex.submit(run_batch, bi, b): bi for bi, b in enumerate(batches)}
+            done = 0
+            for fut in as_completed(futs):
+                bi = futs[fut]
+                results[bi] = fut.result()
+                done += 1
+                log.info("[Translation] 并行进度：%d/%d 批完成", done, n)
+
+        out = [t for r in results for t in (r or [])][:len(segments)]
         for seg, t in zip(segments, out):
             seg["translated_text"] = t
-        log.info("[Translation] 翻译完成：%d 段（%s backend）", len(segments), self.backend)
+        log.info("[Translation] 翻译完成：%d 段（%s 后端，%d 路并行）", len(segments), self.backend, workers)
         return segments
 
     def close(self):

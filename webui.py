@@ -285,13 +285,24 @@ def build_settings_tab():
                     cookie_file.parent.mkdir(parents=True, exist_ok=True)
                     cookie_file.write_text(str(v).strip(), encoding="utf-8")
                     updates[target_key] = str(cookie_file)
-                # 留空则不修改现有 cookie 文件配置
-            else:
-                updates[key] = value_to_str(v, typ)
+                else:
+                    # 清空输入框且当前配置指向我们管理的文件时，删除该 cookie 文件
+                    cur = env_vals.get(target_key, "")
+                    if cur and str(cookie_file) in str(cur):
+                        cookie_file.unlink(missing_ok=True)
+                        updates[target_key] = ""
+                continue
+            new_str = value_to_str(v, typ)
+            # 只保存用户改过的字段：避免把「页面构建后 .env 被外部修改的值」覆盖掉
+            if new_str == env_vals.get(key, ""):
+                continue
+            updates[key] = new_str
+        if not updates:
+            return "✅ 无改动（所有设置与 .env 一致）"
         try:
             write_env(ENV_PATH, updates)
             load_dotenv(ENV_PATH, override=True)
-            return "✅ 已保存到 .env 并立即生效"
+            return "✅ 已保存改动到 .env 并立即生效"
         except Exception as e:
             return f"❌ 保存失败：{e}"
 
