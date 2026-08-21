@@ -10,17 +10,33 @@ if not exist "webui.py" (
   exit /b 1
 )
 
-REM 读取 setup.bat 安装时保存的 Python 路径
+REM ---------- 查找 Python 环境 ----------
 set "PYTHON="
+
+REM 1) 读取 setup.bat 保存的路径
 if exist ".pyenv.txt" set /p PYTHON=<.pyenv.txt
+if not "!PYTHON!"=="" goto :py_check
 
-REM 没有配置则自动探测
-if "!PYTHON!"=="" (
-  if exist ".venv\Scripts\python.exe" set "PYTHON=%CD%\.venv\Scripts\python.exe"
+REM 2) 项目内 .venv
+if exist ".venv\Scripts\python.exe" set "PYTHON=%CD%\.venv\Scripts\python.exe"
+if not "!PYTHON!"=="" goto :py_check
+
+REM 3) 自动探测 conda 环境（常见安装位置 + transvideo/vt/soulx）
+set "CONDA_BASE="
+for %%d in ("%USERPROFILE%\anaconda3" "%USERPROFILE%\miniconda3" "%LOCALAPPDATA%\anaconda3" "%LOCALAPPDATA%\miniconda3" "C:\anaconda3" "C:\miniconda3") do (
+  if not defined CONDA_BASE if exist "%%~d\envs\transvideo\python.exe" set "CONDA_BASE=%%~d"
+  if not defined CONDA_BASE if exist "%%~d\envs\vt\python.exe" set "CONDA_BASE=%%~d"
+  if not defined CONDA_BASE if exist "%%~d\envs\soulx\python.exe" set "CONDA_BASE=%%~d"
 )
-if "!PYTHON!"=="" set "PYTHON=python"
+if defined CONDA_BASE if exist "!CONDA_BASE!\envs\transvideo\python.exe" set "PYTHON=!CONDA_BASE!\envs\transvideo\python.exe"
+if not defined PYTHON if defined CONDA_BASE if exist "!CONDA_BASE!\envs\vt\python.exe" set "PYTHON=!CONDA_BASE!\envs\vt\python.exe"
+if not defined PYTHON if defined CONDA_BASE if exist "!CONDA_BASE!\envs\soulx\python.exe" set "PYTHON=!CONDA_BASE!\envs\soulx\python.exe"
+if defined PYTHON goto :py_check
 
-REM 校验 Python 是否存在
+:py_sys
+set "PYTHON=python"
+
+:py_check
 if /i "!PYTHON!"=="python" (
   echo 使用系统 Python：python
 ) else (

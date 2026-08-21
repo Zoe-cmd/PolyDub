@@ -12,3 +12,4 @@ inputs/
 *.log
 diag*.txt
 config/cookies/
+.pyenv.txt
