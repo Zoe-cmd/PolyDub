@@ -244,6 +244,46 @@ transvideo/
 
 ---
 
+## ❓ 常见问题（FAQ）
+
+### 1. start.bat 报错 / 找不到 Python 环境？
+
+`start.bat` 找 Python 的顺序是：
+
+1. `.pyenv.txt`（**推荐方式**：运行 `setup.bat` 会自动写入；也可手动创建）
+2. 项目内 `.venv` 虚拟环境
+3. 自动探测**常见位置**的 conda 环境（transvideo / vt / soulx）
+4. 系统 PATH 里的 python
+
+**⚠️ 注意：自动探测只覆盖这些常见安装位置：**
+`%USERPROFILE%\anaconda3`、`%USERPROFILE%\miniconda3`、`%LOCALAPPDATA%\anaconda3`、`%LOCALAPPDATA%\miniconda3`、`C:\anaconda3`、`C:\miniconda3`
+
+**如果你的 conda 装在自定义位置**（如 `D:\tools\conda`、`E:\miniconda`、`G:\anaconda` 等），自动探测**找不到**，start.bat 会退回系统 python（缺依赖 → 启动报错）。解决办法：
+
+- **方法一（推荐）**：在项目根目录手动创建 `.pyenv.txt`，里面写入你 conda 环境的 python.exe 完整路径，例如：
+  ```
+  D:\tools\conda\envs\transvideo\python.exe
+  ```
+  保存后重新双击 `start.bat` 即可。
+- **方法二**：直接运行 `setup.bat`（交互式选择环境后会自动写入 `.pyenv.txt`，任何安装位置都适用）。
+- **方法三**：绕过 start.bat，用命令行手动启动：
+  ```
+  "D:\tools\conda\envs\transvideo\python.exe" webui.py
+  ```
+
+### 2. 下载视频失败，提示需要 Cookie？
+
+见上方「🍪 下载 Cookie 配置」章节——用浏览器插件 Cookie-Editor 导出 JSON 粘贴到设置页即可（JSON / Netscape / Header 字符串三种格式都支持，系统会自动适配）。
+
+### 3. 生成的视频里有的声音大、有的声音小？
+
+系统已对每段配音做**响度归一化**（`mixing.dubbed_rms`，默认 0.12）。如需微调，编辑 `config/config.yaml` 的 `mixing` 段：
+- `dubbed_rms`：每段配音的目标响度（0~1，越大越响，建议 0.1~0.15）
+- `background_gain`：背景音乐/环境音音量
+- `dubbed_gain`：配音总音量倍率
+
+---
+
 ## ⚠️ 注意事项 / 限制
 
 1. **说话人数**：自动检测有时会把声线相近的两个人合并；若发现人数不对，用 `--num-speakers` 手动指定。
