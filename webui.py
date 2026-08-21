@@ -41,9 +41,128 @@ STAGE_LABEL = {
     "separate": "人声/背景分离", "translate": "翻译", "tts": "TTS 配音",
     "align": "时间轴对齐", "mix": "混音", "mux": "封装视频",
 }
+STAGE_LABEL_EN = {
+    "extract": "Extract audio", "transcribe": "Transcribe", "diarize": "Diarize",
+    "separate": "Separate vocals", "translate": "Translate", "tts": "TTS dubbing",
+    "align": "Align", "mix": "Mix", "mux": "Mux",
+}
 
-LANGS = ["auto", "en", "zh", "ja", "ko", "es", "ar", "fr", "de", "ru"]
-TARGET_LANGS = ["zh", "en", "ja", "es", "ar"]
+CURRENT_LANG = "zh"
+
+# 语言显示名（中文界面显示中文，英文界面显示英文）
+LANG_NAMES = {
+    "auto": {"zh": "自动", "en": "Auto"},
+    "zh": {"zh": "中文", "en": "Chinese"},
+    "en": {"zh": "英文", "en": "English"},
+    "ja": {"zh": "日文", "en": "Japanese"},
+    "ko": {"zh": "韩文", "en": "Korean"},
+    "es": {"zh": "西语", "en": "Spanish"},
+    "ar": {"zh": "阿语", "en": "Arabic"},
+    "fr": {"zh": "法语", "en": "French"},
+    "de": {"zh": "德语", "en": "German"},
+    "ru": {"zh": "俄语", "en": "Russian"},
+}
+LANG_CODES = ["auto", "zh", "en", "ja", "ko", "es", "ar", "fr", "de", "ru"]
+# 目标语言（配音）：受 IndexTTS 2.5 支持的语言限制（zh/en/ja/es/ar）
+TARGET_CODES = ["zh", "en", "ja", "es", "ar"]
+
+UI = {
+    "zh": {
+        "title": "# 🎬 AI 视频翻译与多说话人配音",
+        "tab_process": "🎬 处理",
+        "tab_settings": "⚙️ 设置",
+        "dl_heading": "### ⬇ 从 URL 下载（或下方上传本地视频）",
+        "url_label": "视频 URL（YouTube/TikTok 等）",
+        "dl_btn": "⬇ 下载到 downloads/",
+        "dl_status": "下载结果",
+        "upload_heading": "### 📤 上传本地视频",
+        "upload_label": "上传视频",
+        "src_lang": "原语言",
+        "tgt_lang": "目标语言",
+        "num_spk": "说话人数",
+        "do_sep": "人声/背景分离",
+        "run_all": "▶ 一键全流程",
+        "status": "状态",
+        "log": "日志",
+        "tab_srt": "原字幕 SRT",
+        "tab_trans": "翻译字幕",
+        "tab_video": "结果视频",
+        "settings_heading": "### 全局配置（鼠标悬停每个选项可查看说明；保存后同步到 .env 并立即生效）",
+        "save_all": "💾 保存所有设置",
+        "save_result": "保存结果",
+        "saved": "✅ 已保存改动到 .env 并立即生效",
+        "no_change": "✅ 无改动（所有设置与 .env 一致）",
+        "save_fail": "❌ 保存失败：{err}",
+        "lang_btn": "EN",
+        "ready": "⏳ 准备中...",
+        "upload_first": "❌ 请先上传视频",
+        "running": "▶ 正在执行：{label}（{i}/{total}）｜已用时 {secs:.0f}s",
+        "done_stage": "✅ 完成：{label}（{i}/{total}）｜已用时 {secs:.0f}s",
+        "finished": "🎉 全部完成！总用时 {secs:.0f}s\n\n{info}",
+        "failed": "❌ 处理失败：{err}",
+        "downloaded": "✅ 已下载到：{fp}",
+        "dl_fail": "❌ 下载失败：{err}",
+        "need_url": "❌ 请输入 URL",
+    },
+    "en": {
+        "title": "# 🎬 AI Video Translation & Multi-speaker Dubbing",
+        "tab_process": "🎬 Process",
+        "tab_settings": "⚙️ Settings",
+        "dl_heading": "### ⬇ Download from URL (or upload below)",
+        "url_label": "Video URL (YouTube/TikTok...)",
+        "dl_btn": "⬇ Download to downloads/",
+        "dl_status": "Download result",
+        "upload_heading": "### 📤 Upload local video",
+        "upload_label": "Upload video",
+        "src_lang": "Source language",
+        "tgt_lang": "Target language",
+        "num_spk": "Speakers",
+        "do_sep": "Vocal/background separation",
+        "run_all": "▶ Run full pipeline",
+        "status": "Status",
+        "log": "Log",
+        "tab_srt": "Original SRT",
+        "tab_trans": "Translated subtitles",
+        "tab_video": "Result video",
+        "settings_heading": "### Global settings (hover for help; saving syncs to .env and takes effect immediately)",
+        "save_all": "💾 Save all settings",
+        "save_result": "Save result",
+        "saved": "✅ Saved changes to .env",
+        "no_change": "✅ No changes (all settings match .env)",
+        "save_fail": "❌ Save failed: {err}",
+        "lang_btn": "中文",
+        "ready": "⏳ Preparing...",
+        "upload_first": "❌ Please upload a video first",
+        "running": "▶ Running: {label} ({i}/{total}) | elapsed {secs:.0f}s",
+        "done_stage": "✅ Done: {label} ({i}/{total}) | elapsed {secs:.0f}s",
+        "finished": "🎉 All done! Total {secs:.0f}s\n\n{info}",
+        "failed": "❌ Failed: {err}",
+        "downloaded": "✅ Downloaded to: {fp}",
+        "dl_fail": "❌ Download failed: {err}",
+        "need_url": "❌ Please enter a URL",
+    },
+}
+
+_registry = []  # (component, kind, zh, en)
+
+
+def _t(key):
+    return UI[CURRENT_LANG].get(key, key)
+
+
+def _stage_label(s):
+    d = STAGE_LABEL_EN if CURRENT_LANG == "en" else STAGE_LABEL
+    return d.get(s, s)
+
+
+def _reg(c, kind, zh, en):
+    _registry.append((c, kind, zh, en))
+
+
+def _reg_choices(c, codes):
+    zh = [(LANG_NAMES[x]["zh"], x) for x in codes]
+    en = [(LANG_NAMES[x]["en"], x) for x in codes]
+    _registry.append((c, "choices", zh, en))
 
 
 load_dotenv(ENV_PATH)
@@ -103,7 +222,7 @@ def build_info(p):
 def handle_download(url):
     """从 URL 下载视频到 downloads/，返回状态信息。"""
     if not url or not url.strip():
-        return "❌ 请输入 URL"
+        return _t("need_url")
     try:
         from app.video.downloader import download
 
@@ -115,9 +234,9 @@ def handle_download(url):
             cookies_config=dl_cfg.get("cookies"),
             show_progress=True,
         )
-        return f"✅ 已下载到：{fp}"
+        return _t("downloaded").format(fp=fp)
     except Exception as e:
-        return f"❌ 下载失败：{e}"
+        return _t("dl_fail").format(err=e)
 
 
 def apply_env_to_config(config):
@@ -149,12 +268,12 @@ def run_stages(video_path, stages, source_lang, target_lang, do_separate, num_sp
     import time as _time
 
     if not video_path:
-        yield "❌ 请先上传视频", "", "", "", None
+        yield _t("upload_first"), "", "", "", None
         return
     video_path = save_upload(video_path)
 
     q = _queue.Queue()
-    status = {"text": "⏳ 准备中..."}
+    status = {"text": _t("ready")}
     log_lines = []
 
     class QueueHandler(logging.Handler):
@@ -184,24 +303,25 @@ def run_stages(video_path, stages, source_lang, target_lang, do_separate, num_sp
             total = max(len(run_list), 1)
             t0 = _time.time()
             for i, s in enumerate(run_list):
-                label = STAGE_LABEL.get(s, s)
-                status["text"] = f"▶ 正在执行：{label}（{i + 1}/{total}）｜已用时 {_time.time() - t0:.0f}s"
+                label = _stage_label(s)
+                secs = _time.time() - t0
+                status["text"] = _t("running").format(label=label, i=i + 1, total=total, secs=secs)
                 logging.getLogger("webui").info("【%s】===== 开始（%d/%d）=====", label, i + 1, total)
                 getattr(p, f"stage_{s}")()
-                status["text"] = f"✅ 完成：{label}（{i + 1}/{total}）｜已用时 {_time.time() - t0:.0f}s"
+                status["text"] = _t("done_stage").format(label=label, i=i + 1, total=total, secs=_time.time() - t0)
 
             info = build_info(p)
             srt = read_text(p.ws.path("subtitles_speakers.srt")) or read_text(p.ws.path("subtitles.srt"))
             trans = read_text(p.ws.path("subtitles_translated.srt"))
             final = p.ws.path(f"{p.ws.name}_dubbed.mp4")
             final = str(final) if Path(final).exists() else None
-            status["text"] = f"🎉 全部完成！总用时 {_time.time() - t0:.0f}s\n\n{info}"
+            status["text"] = _t("finished").format(secs=_time.time() - t0, info=info)
             result["payload"] = (srt, trans, final)
         except Exception as e:
             import traceback
 
             tb = traceback.format_exc()
-            status["text"] = f"❌ 处理失败：{e}"
+            status["text"] = _t("failed").format(err=e)
             logging.getLogger("webui").error("处理失败：%s\n%s", e, tb)
         finally:
             q.put(("DONE", None))
@@ -231,13 +351,17 @@ def run_stages(video_path, stages, source_lang, target_lang, do_separate, num_sp
 
 def build_settings_tab():
     """渲染「设置」页内容（不含外层 gr.Tab，由调用方包裹）。"""
+    from app.settings import SETTINGS_EN, SECTION_EN
+
     env_vals = read_env(ENV_PATH)
-    gr.Markdown("### 全局配置（鼠标悬停每个选项可查看说明；保存后同步到 .env 并立即生效）")
+    _heading = gr.Markdown(_t("settings_heading"))
+    _reg(_heading, "markdown", UI["zh"]["settings_heading"], UI["en"]["settings_heading"])
 
     components = []  # [(key, typ, component)]
 
     def render_items(items):
         for key, label, typ, choices, desc in items:
+            en_label, en_desc = SETTINGS_EN.get(key, (label, desc))
             if typ == "choice":
                 default = env_vals.get(key, "")
                 if default not in (choices or []):
@@ -257,21 +381,27 @@ def build_settings_tab():
                     info=desc,
                 )
             components.append((key, typ, c))
+            _reg(c, "label", label, en_label)
+            _reg(c, "info", desc, en_desc)
 
     # 左右两栏，缩短页面
     mid = (len(SETTINGS_SECTIONS) + 1) // 2
     with gr.Row():
         with gr.Column(scale=1):
             for section, items in SETTINGS_SECTIONS[:mid]:
-                with gr.Accordion(section, open=False):
+                with gr.Accordion(section, open=False) as acc:
+                    _reg(acc, "label", section, SECTION_EN.get(section, section))
                     render_items(items)
         with gr.Column(scale=1):
             for section, items in SETTINGS_SECTIONS[mid:]:
-                with gr.Accordion(section, open=False):
+                with gr.Accordion(section, open=False) as acc:
+                    _reg(acc, "label", section, SECTION_EN.get(section, section))
                     render_items(items)
 
-    btn_save = gr.Button("💾 保存所有设置", variant="primary")
-    save_status = gr.Textbox(label="保存结果", interactive=False, lines=1)
+    btn_save = gr.Button(_t("save_all"), variant="primary")
+    _reg(btn_save, "label", UI["zh"]["save_all"], UI["en"]["save_all"])
+    save_status = gr.Textbox(label=_t("save_result"), interactive=False, lines=1)
+    _reg(save_status, "label", UI["zh"]["save_result"], UI["en"]["save_result"])
 
     def do_save(*values):
         updates = {}
@@ -298,13 +428,13 @@ def build_settings_tab():
                 continue
             updates[key] = new_str
         if not updates:
-            return "✅ 无改动（所有设置与 .env 一致）"
+            return _t("no_change")
         try:
             write_env(ENV_PATH, updates)
             load_dotenv(ENV_PATH, override=True)
-            return "✅ 已保存改动到 .env 并立即生效"
+            return _t("saved")
         except Exception as e:
-            return f"❌ 保存失败：{e}"
+            return _t("save_fail").format(err=e)
 
     btn_save.click(
         do_save,
@@ -314,45 +444,76 @@ def build_settings_tab():
 
 
 def build_ui():
-    with gr.Blocks(title="AI 视频翻译与多说话人配音") as demo:
-        gr.Markdown("# 🎬 AI 视频翻译与多说话人配音")
+    with gr.Blocks(title="AI Video Translation & Dubbing") as demo:
+        # 顶部：标题 + 右上角语言切换
+        with gr.Row():
+            with gr.Column(scale=6):
+                title_md = gr.Markdown(_t("title"))
+            with gr.Column(scale=1, min_width=110):
+                lang_btn = gr.Button(_t("lang_btn"), size="sm")
+        _reg(title_md, "markdown", UI["zh"]["title"], UI["en"]["title"])
+        _reg(lang_btn, "label", UI["zh"]["lang_btn"], UI["en"]["lang_btn"])
 
-        with gr.Tabs():
-            with gr.Tab("🎬 处理"):
+        with gr.Tabs() as tabs:
+            with gr.Tab(_t("tab_process")) as tab_process:
                 with gr.Row():
                     with gr.Column(scale=1):
-                        gr.Markdown("### ⬇ 从 URL 下载（或下方上传本地视频）")
-                        url_box = gr.Textbox(label="视频 URL（YouTube/TikTok 等）", placeholder="https://...")
-                        btn_dl = gr.Button("⬇ 下载到 downloads/")
-                        dl_status = gr.Textbox(label="下载结果", lines=2, interactive=False)
+                        dl_heading = gr.Markdown(_t("dl_heading"))
+                        _reg(dl_heading, "markdown", UI["zh"]["dl_heading"], UI["en"]["dl_heading"])
+                        url_box = gr.Textbox(label=_t("url_label"), placeholder="https://...")
+                        _reg(url_box, "label", UI["zh"]["url_label"], UI["en"]["url_label"])
+                        btn_dl = gr.Button(_t("dl_btn"))
+                        _reg(btn_dl, "label", UI["zh"]["dl_btn"], UI["en"]["dl_btn"])
+                        dl_status = gr.Textbox(label=_t("dl_status"), lines=2, interactive=False)
+                        _reg(dl_status, "label", UI["zh"]["dl_status"], UI["en"]["dl_status"])
 
-                        gr.Markdown("### 📤 上传本地视频")
+                        up_heading = gr.Markdown(_t("upload_heading"))
+                        _reg(up_heading, "markdown", UI["zh"]["upload_heading"], UI["en"]["upload_heading"])
                         video = gr.File(
-                            label="上传视频",
+                            label=_t("upload_label"),
                             file_types=[".mp4", ".mkv", ".mov", ".avi", ".webm"],
                             type="filepath",
                         )
-                        src_lang = gr.Dropdown(LANGS, value="auto", label="原语言")
-                        tgt_lang = gr.Dropdown(TARGET_LANGS, value="zh", label="目标语言")
-                        num_spk = gr.Dropdown(["auto"] + [str(i) for i in range(1, 11)], value="auto", label="说话人数")
-                        do_sep = gr.Checkbox(value=True, label="人声/背景分离")
+                        _reg(video, "label", UI["zh"]["upload_label"], UI["en"]["upload_label"])
+                        src_lang = gr.Dropdown(
+                            [(LANG_NAMES[x][CURRENT_LANG], x) for x in LANG_CODES],
+                            value="auto", label=_t("src_lang"))
+                        _reg_choices(src_lang, LANG_CODES)
+                        _reg(src_lang, "label", UI["zh"]["src_lang"], UI["en"]["src_lang"])
+                        tgt_lang = gr.Dropdown(
+                            [(LANG_NAMES[x][CURRENT_LANG], x) for x in TARGET_CODES],
+                            value="zh", label=_t("tgt_lang"))
+                        _reg_choices(tgt_lang, TARGET_CODES)
+                        _reg(tgt_lang, "label", UI["zh"]["tgt_lang"], UI["en"]["tgt_lang"])
+                        num_spk = gr.Dropdown(["auto"] + [str(i) for i in range(1, 11)], value="auto", label=_t("num_spk"))
+                        _reg(num_spk, "label", UI["zh"]["num_spk"], UI["en"]["num_spk"])
+                        do_sep = gr.Checkbox(value=True, label=_t("do_sep"))
+                        _reg(do_sep, "label", UI["zh"]["do_sep"], UI["en"]["do_sep"])
 
-                        btn_full = gr.Button("▶ 一键全流程", variant="primary")
+                        btn_full = gr.Button(_t("run_all"), variant="primary")
+                        _reg(btn_full, "label", UI["zh"]["run_all"], UI["en"]["run_all"])
                         with gr.Row():
                             btn_stages = {}
                             for s in ["transcribe", "diarize", "separate", "translate", "tts", "align", "mix", "mux"]:
                                 btn_stages[s] = gr.Button(STAGE_LABEL[s], size="sm")
-                        info_box = gr.Textbox(label="状态", lines=7, interactive=False)
+                                _reg(btn_stages[s], "label", STAGE_LABEL[s], STAGE_LABEL_EN[s])
+                        info_box = gr.Textbox(label=_t("status"), lines=7, interactive=False)
+                        _reg(info_box, "label", UI["zh"]["status"], UI["en"]["status"])
 
                     with gr.Column(scale=2):
-                        log_box = gr.Textbox(label="日志", lines=20, interactive=False)
+                        log_box = gr.Textbox(label=_t("log"), lines=20, interactive=False)
+                        _reg(log_box, "label", UI["zh"]["log"], UI["en"]["log"])
                         with gr.Tabs():
-                            with gr.Tab("原字幕 SRT"):
+                            with gr.Tab(_t("tab_srt")) as tab_srt:
                                 srt_box = gr.Textbox(lines=18, interactive=False, show_label=False)
-                            with gr.Tab("翻译字幕"):
+                            with gr.Tab(_t("tab_trans")) as tab_trans:
                                 trans_box = gr.Textbox(lines=18, interactive=False, show_label=False)
-                            with gr.Tab("结果视频"):
-                                out_video = gr.Video(label="配音视频")
+                            with gr.Tab(_t("tab_video")) as tab_video:
+                                out_video = gr.Video(label=_t("tab_video"))
+                        _reg(tab_srt, "label", UI["zh"]["tab_srt"], UI["en"]["tab_srt"])
+                        _reg(tab_trans, "label", UI["zh"]["tab_trans"], UI["en"]["tab_trans"])
+                        _reg(tab_video, "label", UI["zh"]["tab_video"], UI["en"]["tab_video"])
+                        _reg(out_video, "label", UI["zh"]["tab_video"], UI["en"]["tab_video"])
 
                 outputs = [info_box, log_box, srt_box, trans_box, out_video]
                 inputs = [video, src_lang, tgt_lang, do_sep, num_spk]
@@ -368,8 +529,32 @@ def build_ui():
                 for s, b in btn_stages.items():
                     b.click(make_handler(STAGES_FOR[s]), inputs=inputs, outputs=outputs)
 
-            with gr.Tab("⚙️ 设置"):
+            with gr.Tab(_t("tab_settings")) as tab_settings:
                 build_settings_tab()
+
+        _reg(tab_process, "label", UI["zh"]["tab_process"], UI["en"]["tab_process"])
+        _reg(tab_settings, "label", UI["zh"]["tab_settings"], UI["en"]["tab_settings"])
+
+        # 语言切换（右上角按钮）：zh <-> en，更新所有已注册组件
+        def do_switch_lang():
+            global CURRENT_LANG
+            CURRENT_LANG = "en" if CURRENT_LANG == "zh" else "zh"
+            outs = []
+            for c, kind, zh, en in _registry:
+                v = zh if CURRENT_LANG == "zh" else en
+                if kind == "label":
+                    outs.append(gr.update(label=v))
+                elif kind == "info":
+                    outs.append(gr.update(info=v))
+                elif kind == "choices":
+                    outs.append(gr.update(choices=v))
+                elif kind == "markdown":
+                    outs.append(gr.update(value=v))
+                else:
+                    outs.append(gr.update())
+            return outs
+
+        lang_btn.click(do_switch_lang, outputs=[c for c, *_ in _registry])
 
     return demo
 
