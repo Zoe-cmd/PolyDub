@@ -399,7 +399,7 @@ def build_settings_tab():
                     render_items(items)
 
     btn_save = gr.Button(_t("save_all"), variant="primary")
-    _reg(btn_save, "label", UI["zh"]["save_all"], UI["en"]["save_all"])
+    _reg(btn_save, "value", UI["zh"]["save_all"], UI["en"]["save_all"])
     save_status = gr.Textbox(label=_t("save_result"), interactive=False, lines=1)
     _reg(save_status, "label", UI["zh"]["save_result"], UI["en"]["save_result"])
 
@@ -452,7 +452,7 @@ def build_ui():
             with gr.Column(scale=1, min_width=110):
                 lang_btn = gr.Button(_t("lang_btn"), size="sm")
         _reg(title_md, "markdown", UI["zh"]["title"], UI["en"]["title"])
-        _reg(lang_btn, "label", UI["zh"]["lang_btn"], UI["en"]["lang_btn"])
+        _reg(lang_btn, "value", UI["zh"]["lang_btn"], UI["en"]["lang_btn"])
 
         with gr.Tabs() as tabs:
             with gr.Tab(_t("tab_process")) as tab_process:
@@ -463,7 +463,7 @@ def build_ui():
                         url_box = gr.Textbox(label=_t("url_label"), placeholder="https://...")
                         _reg(url_box, "label", UI["zh"]["url_label"], UI["en"]["url_label"])
                         btn_dl = gr.Button(_t("dl_btn"))
-                        _reg(btn_dl, "label", UI["zh"]["dl_btn"], UI["en"]["dl_btn"])
+                        _reg(btn_dl, "value", UI["zh"]["dl_btn"], UI["en"]["dl_btn"])
                         dl_status = gr.Textbox(label=_t("dl_status"), lines=2, interactive=False)
                         _reg(dl_status, "label", UI["zh"]["dl_status"], UI["en"]["dl_status"])
 
@@ -491,12 +491,12 @@ def build_ui():
                         _reg(do_sep, "label", UI["zh"]["do_sep"], UI["en"]["do_sep"])
 
                         btn_full = gr.Button(_t("run_all"), variant="primary")
-                        _reg(btn_full, "label", UI["zh"]["run_all"], UI["en"]["run_all"])
+                        _reg(btn_full, "value", UI["zh"]["run_all"], UI["en"]["run_all"])
                         with gr.Row():
                             btn_stages = {}
                             for s in ["transcribe", "diarize", "separate", "translate", "tts", "align", "mix", "mux"]:
                                 btn_stages[s] = gr.Button(STAGE_LABEL[s], size="sm")
-                                _reg(btn_stages[s], "label", STAGE_LABEL[s], STAGE_LABEL_EN[s])
+                                _reg(btn_stages[s], "value", STAGE_LABEL[s], STAGE_LABEL_EN[s])
                         info_box = gr.Textbox(label=_t("status"), lines=7, interactive=False)
                         _reg(info_box, "label", UI["zh"]["status"], UI["en"]["status"])
 
@@ -549,6 +549,8 @@ def build_ui():
                 elif kind == "choices":
                     outs.append(gr.update(choices=v))
                 elif kind == "markdown":
+                    outs.append(gr.update(value=v))
+                elif kind == "value":
                     outs.append(gr.update(value=v))
                 else:
                     outs.append(gr.update())
